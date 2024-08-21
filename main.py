@@ -3,8 +3,10 @@ import pandas as pd
 from langchain.agents import AgentExecutor, ZeroShotAgent
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
-from custom_tools import initialize_tools
 from langchain_openai import ChatOpenAI
+
+from custom_tools import initialize_tools
+from callbacks import StreamHandler, stream_data
 
 # Load data
 data_input = pd.read_csv('YTD_sales_report_2024.csv')
@@ -88,11 +90,15 @@ prompt = ZeroShotAgent.create_prompt(
 
 memory = ConversationBufferMemory(memory_key="chat_history")
 
+# stream_handler = StreamHandler(st.empty())
+
 # Initialize the language model chain with a chat model
 llm_chain = LLMChain(
     llm=ChatOpenAI(
+        model_name="gpt-4o",
         temperature=0,
-        model_name="gpt-4o"
+        # streaming=True,
+        # callbacks=[stream_handler]
     ),
     prompt=prompt
 )
@@ -134,5 +140,5 @@ if __name__ == "__main__":
         
         # Append AI response to the session state
         with st.chat_message("assistant"):
-            st.markdown(response)
+            st.write_stream(stream_data(response))
         st.session_state.messages.append({"role": "assistant", "content": response})
