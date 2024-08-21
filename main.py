@@ -8,6 +8,9 @@ from langchain_openai import ChatOpenAI
 from custom_tools import initialize_tools
 from callbacks import StreamHandler, stream_data
 
+# Set the page layout to wide
+st.set_page_config(layout="wide")
+
 # Load data
 data_input = pd.read_csv('YTD_sales_report_2024.csv')
 
