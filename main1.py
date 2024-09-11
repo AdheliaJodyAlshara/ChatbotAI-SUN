@@ -139,23 +139,11 @@ if __name__ == "__main__":
 
     st.subheader("Hi, I am Interactive Dashboard Assistant. What can I do for you?", divider="blue")
 
-
-    # Create three columns for the example buttons
-    example_col1, example_col2, example_col3= st.columns([2,3,2])
-
-    # Add buttons to each column
-    with example_col1:
-        st.button("Please summarize sales report data in 2024")
-
-    with example_col2:
-        st.button("Generate bar chart sales data for this year")
-
-    with example_col3:
-        st.button("What are strategic ways to increase sales?")
-
     # Initialize session state for maintaining conversation history
     if 'messages' not in st.session_state:
         st.session_state.messages = []
+    if "example_query" not in st.session_state:
+        st.session_state.example_query = None
 
     # Display the conversation history
     for message in st.session_state.messages:
@@ -167,16 +155,47 @@ if __name__ == "__main__":
                 st.image(image_path)
             else:
                 st.markdown(message['content'])
+    
+    if len(st.session_state.messages) == 0:
+        # Create three columns for the example buttons
+        example_col1, example_col2, example_col3= st.columns(3)
+
+        # Add buttons to each column
+        with example_col1:
+            example_query1 = "Please summarize sales report data in 2024"
+            if st.button(example_query1):
+                st.session_state.example_query = example_query1
+                st.session_state.messages.append({"role": "user", "content": example_query1})
+                st.rerun()
+
+        with example_col2:
+            example_query2 = "Generate bar chart sales data for this year"
+            if st.button(example_query2):
+                st.session_state.example_query = example_query2
+                st.session_state.messages.append({"role": "user", "content": example_query2})
+                st.rerun()
+
+        with example_col3:
+            example_query3 = "What are strategic ways to increase sales?"
+            if st.button(example_query3):
+                st.session_state.example_query = example_query3
+                st.session_state.messages.append({"role": "user", "content": example_query3})
+                st.rerun()
 
     # User inputs their question
     user_question = st.chat_input("Enter your question about the sales data...")
 
     # Button to process the question
-    if user_question:
-        # Append user's question to the session state
-        st.session_state.messages.append({"role": "user", "content": user_question})
-        with st.chat_message("user"):
-            st.markdown(user_question)
+    if user_question or st.session_state.example_query:
+        if st.session_state.example_query:
+            user_question = st.session_state.example_query
+            st.session_state.example_query = None
+        else:
+            # Append user's question to the session state
+            st.session_state.messages.append({"role": "user", "content": user_question})
+            
+            with st.chat_message("user"):
+                st.markdown(user_question)
 
         # Run the agent with the formulated prompt
         with st.spinner('Processing...'):
