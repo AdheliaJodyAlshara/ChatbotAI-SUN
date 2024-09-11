@@ -127,7 +127,31 @@ agent_executor = AgentExecutor.from_agent_and_tools(
 
 if __name__ == "__main__":
     # Setup the Streamlit interface
-    st.title('Q&A AI')
+
+    col1, col2 = st.columns([1, 22])
+    # Display the icon in the first column
+    with col1:
+        st.image("ai-assistant.png", width=50)  # Adjust the width as needed
+
+    # Display the title in the second column
+    with col2:
+        st.title("Your Dashboard Q&A Assistant")
+
+    st.subheader("Hi, I am Interactive Dashboard Assistant. What can I do for you?", divider="blue")
+
+
+    # Create three columns for the example buttons
+    example_col1, example_col2, example_col3= st.columns([2,3,2])
+
+    # Add buttons to each column
+    with example_col1:
+        st.button("Please summarize sales report data in 2024")
+
+    with example_col2:
+        st.button("Generate bar chart sales data for this year")
+
+    with example_col3:
+        st.button("What are strategic ways to increase sales?")
 
     # Initialize session state for maintaining conversation history
     if 'messages' not in st.session_state:
