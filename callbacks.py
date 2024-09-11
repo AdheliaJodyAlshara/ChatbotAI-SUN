@@ -30,6 +30,5 @@ class StreamHandler(BaseCallbackHandler):
         display_function = getattr(self.container, self.display_method, None)
         if display_function is not None:
             display_function(clean_text_if_needed(self.text))
-            # print(self.text)
         else:
             raise ValueError(f"Invalid display_method: {self.display_method}")

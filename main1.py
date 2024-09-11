@@ -1,21 +1,25 @@
 import streamlit as st
 import pandas as pd
+import os
+import re
 from langchain.agents import AgentExecutor, ZeroShotAgent
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
 from langchain_openai import ChatOpenAI
 from pandasai.llm import OpenAI
-import seaborn as sns
 from pandasai import SmartDataframe
-
-from custom_tools import initialize_tools
+from custom_tools import initialize_tools, data_input
 from callbacks import StreamHandler, stream_data
+from config import llm
 
 # Set the page layout to wide
 st.set_page_config(layout="wide")
 
-# Load data
-data_input = pd.read_csv('YTD_sales_report_2024.csv')
+# url = os.getenv("CSV_URL")
+# file_id=url.split('/')[-2]
+# dwn_url='https://drive.google.com/uc?id=' + file_id
+# data_input = pd.read_csv(dwn_url)
+
 
 # Initialize tools
 tools = initialize_tools()
@@ -37,18 +41,19 @@ Lead Across Sales Conversion Journey:
 - L6 = Contract signed. User pays confirmation fee/subs/deposit.
 
 Here the steps for you to summarize and give insight about the SUN Terra sales report data:
-- Step 1 : Step by step analyze L0 until L6 trends within years over months from each lead type. You don't need to use the tools for this step.
-- Step 2 : From step 1 get additional information from the internet to get insight and enhance your summarization. REMEMBER YOU ARE ONLY PERMITTED TO SEARCH FROM THE INTERNET 3 TIMES OR LESS! If you feel enough with your research from the internet less than 3 times, you can immediately move on to the next step.
-- Step 3 : From step 2, provide the final answer after repeating the search for responses from the internet only 3 times with a summary and insight based on data and information from the internet.
+- Step 1 : Step by step analyze provided sales report data L0 until L6 trends within years over months from each lead type. You don't need to use the tools for this step.
+- Step 2 : Enhance your analysis from Step 1 by gathering additional insights from the internet to strengthen your summary. You are limited to a maximum of three internet searches. If you find the information you need before reaching three searches, you can proceed to the next step without completing all three searches. But if the question involves creating a chart, you can use the Chart Generator tool by passing the user question without paraphrasing for creating chart.
+- Step 3 : Summarize the findings and provide insights based on your analysis from Step 1 and the additional information from Step 2. Ensure your final answer integrates the data trends with insights from the internet searches or chart generator.
+- Step 4 : In the final output, You should include all reference data & links to back up your research; You should include all reference data.
 
-If the question is a follow-up question or does not relate to the provided sales data, then here the steps for you:
+If the question is a follow-up question or does not relate to the provided sales report data, then here the steps for you:
 - Step 1 : Get the information from the internet to get answer from the user question. REMEMBER YOU ARE ONLY PERMITTED TO SEARCH FROM THE INTERNET 3 TIMES OR LESS! If you feel enough with your research from the internet less than 3 times, you can immediately move on to the next step.
-- Step 2 : From step 1, provide the final answer.
+- Step 2 : From step 1, provide the final answer. In the final output, You should include all reference data & links to back up your research; You should include all reference data.
 '''
 
 data_string = f'''Sales Report Data of Sun Terra Business Unit: 
 ```
-{data_input}
+{data_input.to_string()}
 ```
 
 '''
@@ -65,7 +70,7 @@ Thought: {agent_scratchpad}
 '''
 
 # Define the format instructions for the agent's output
-format_instructions = """Use the following format without any punctuations:
+format_instructions = """Strictly use the following format and it must be in consecutive order without any punctuation:
 
 Question: the input question you must answer
 Thought: you should always think about what to do
@@ -73,12 +78,13 @@ Action: the action to take, MUST be one of these tool names only without the par
 Action Input: the input to the action
 Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can be repeated only 3 times)
-Thought: Now I know the final answer
-Final Answer: If the question directly involves analyzing the sales report data provided. Final Answer Format:
+Thought: I now know the final answer
+Final Answer: If the question directly involves analyzing the sales report data provided. 
 
-<Lead_type>
-Summarization: <Your Summarization as a paragraph>
-Insight: <Your Insight as a paragraph>
+Provide your final answer using the following output format for each lead type:
+<Lead Type>
+- Summarization: <Your Summarization as a paragraph> 
+- Insight: <Your Insight as a paragraph>
 
 
 If the question is a follow-up or does not relate to the provided sales data:
@@ -92,6 +98,7 @@ prompt = ZeroShotAgent.create_prompt(
     suffix=suffix,
     format_instructions=format_instructions,
     input_variables=["chat_history", "human_input", "agent_scratchpad"],
+
 )
 
 memory = ConversationBufferMemory(memory_key="chat_history")
@@ -100,12 +107,13 @@ memory = ConversationBufferMemory(memory_key="chat_history")
 
 # Initialize the language model chain with a chat model
 llm_chain = LLMChain(
-    llm=ChatOpenAI(
-        model_name="gpt-4o",
-        temperature=0,
-        # streaming=True,
-        # callbacks=[stream_handler]
-    ),
+    llm=llm,
+    #     ChatOpenAI(
+    #     model_name="gpt-4o",
+    #     temperature=0
+    #     # streaming=True,
+    #     # callbacks=[stream_handler]
+    # ),
     prompt=prompt
 )
 
@@ -119,7 +127,7 @@ agent_executor = AgentExecutor.from_agent_and_tools(
 
 if __name__ == "__main__":
     # Setup the Streamlit interface
-    st.title('Q&A AI SUN Terra Sales Data')
+    st.title('Q&A AI')
 
     # Initialize session state for maintaining conversation history
     if 'messages' not in st.session_state:
@@ -128,7 +136,13 @@ if __name__ == "__main__":
     # Display the conversation history
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            st.markdown(message['content'])
+            if "<img" in message['content']:
+                image_path = re.search(r'src="([^"]*)"', message['content']).group(1)
+                new_message = re.sub(r'<img src="[^"]*" alt="[^"]*">', '', message['content'])
+                st.markdown(new_message)
+                st.image(image_path)
+            else:
+                st.markdown(message['content'])
 
     # User inputs their question
     user_question = st.chat_input("Enter your question about the sales data...")
@@ -142,9 +156,24 @@ if __name__ == "__main__":
 
         # Run the agent with the formulated prompt
         with st.spinner('Processing...'):
-            response = agent_executor.run(human_input=user_question)
-        
+            try:
+                response = agent_executor.run(human_input=user_question)
+            except:
+                response = "I'm sorry I can't process your query right now. Please try again."
+
         # Append AI response to the session state
-        with st.chat_message("assistant"):
-            st.write_stream(stream_data(response))
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        try:
+            with st.chat_message("assistant"):
+                if "<img" in response:
+                    image_path = re.search(r'src="([^"]*)"', response).group(1)
+                    new_response = re.sub(r'<img src="[^"]*" alt="[^"]*">', '', response)
+                    st.write_stream(stream_data(new_response))
+                    st.image(image_path)
+                else:
+                    st.write_stream(stream_data(response))
+            st.session_state.messages.append({"role": "assistant", "content": response})
+        except:
+            with st.chat_message("assistant"):
+                response = "I'm sorry I can't process your query right now. Please try again."
+                st.write_stream(stream_data(response))
+            st.session_state.messages.append({"role": "assistant", "content": response})
