@@ -58,7 +58,12 @@ data_string = f'''Sales Report Data of Sun Terra Business Unit:
 
 '''
 
-suffix = data_string + '''Your past conversation with human:
+suffix = data_string + '''Additional Data:
+```
+{additional_data}
+```
+
+Your past conversation with human:
 ```
 {chat_history}
 ```
@@ -97,11 +102,11 @@ prompt = ZeroShotAgent.create_prompt(
     prefix=prefix,
     suffix=suffix,
     format_instructions=format_instructions,
-    input_variables=["chat_history", "human_input", "agent_scratchpad"],
+    input_variables=["chat_history", "human_input", "additional_data", "agent_scratchpad"],
 
 )
 
-memory = ConversationBufferMemory(memory_key="chat_history")
+memory = ConversationBufferMemory(memory_key="chat_history", input_key="human_input")
 
 # stream_handler = StreamHandler(st.empty())
 
@@ -144,6 +149,8 @@ if __name__ == "__main__":
         st.session_state.messages = []
     if "example_query" not in st.session_state:
         st.session_state.example_query = None
+    if "uploaded_data" not in st.session_state:
+        st.session_state.uploaded_data = None
 
     # Display the conversation history
     for message in st.session_state.messages:
@@ -169,7 +176,7 @@ if __name__ == "__main__":
                 st.rerun()
 
         with example_col2:
-            example_query2 = "Generate bar chart sales data for this year"
+            example_query2 = "Generate chart lead journey using sales report data in 2024"
             if st.button(example_query2):
                 st.session_state.example_query = example_query2
                 st.session_state.messages.append({"role": "user", "content": example_query2})
@@ -197,12 +204,28 @@ if __name__ == "__main__":
             with st.chat_message("user"):
                 st.markdown(user_question)
 
-        # Run the agent with the formulated prompt
-        with st.spinner('Processing...'):
-            try:
-                response = agent_executor.run(human_input=user_question)
-            except:
-                response = "I'm sorry I can't process your query right now. Please try again."
+        # # Run the agent with the formulated prompt
+        # with st.spinner('Processing...'):
+        #     try:
+        #         response = agent_executor.run(human_input=user_question)
+        #     except:
+        #         response = "I'm sorry I can't process your query right now. Please try again."
+
+        # Check if uploaded data exists before running the agent
+        if st.session_state.uploaded_data is not None:
+            with st.spinner('Processing query with uploaded data...'):
+                try:
+                    # Use uploaded data for query processing
+                    # Pass st.session_state.uploaded_data to the agent if needed
+                    response = agent_executor.run(human_input=user_question, additional_data=st.session_state.uploaded_data)
+                except Exception as e:
+                    response = f"I'm sorry I can't process your query right now due to {str(e)}."
+        else:
+            with st.spinner('Processing query without uploaded data...'):
+                try:
+                    response = agent_executor.run(human_input=user_question, additional_data="no additional data")
+                except Exception as e:
+                    response = f"I'm sorry I can't process your query right now due to {str(e)}."
 
         # Append AI response to the session state
         try:
@@ -220,3 +243,13 @@ if __name__ == "__main__":
                 response = "I'm sorry I can't process your query right now. Please try again."
                 st.write_stream(stream_data(response))
             st.session_state.messages.append({"role": "assistant", "content": response})
+
+    # Allow user to upload additional data (CSV format)
+    uploaded_file = st.file_uploader("Drop your additional data here", type=["csv"])
+    
+    if uploaded_file:
+        # Load the uploaded CSV file into pandas DataFrame
+        st.session_state.uploaded_data = pd.read_csv(uploaded_file).to_string()
+        # st.success("File uploaded successfully!")
+        # st.write("Here is a preview of the uploaded data:")
+        # st.dataframe(st.session_state.uploaded_data.head())  # Display a preview of the data

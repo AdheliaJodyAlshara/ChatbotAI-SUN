@@ -29,7 +29,7 @@ def default_tools():
 
 # def chart_generator(user_question : Annotated[str, "The original user question without paraphrasing for creating chart"]) -> str:
 def chart_generator(user_question : str) -> str:
-    df = SmartDataframe(data_input, config={"llm": llm})
+    df = SmartDataframe(data_input, config={"llm": llm, "save_charts": True})
     chart_path = df.chat(user_question)
 
     # file_ = open(chart_path, "rb")

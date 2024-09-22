@@ -9,7 +9,7 @@ data_input = pd.read_csv(dwn_url)
 data_input_str = data_input.to_string()
 
 llm = ChatOpenAI(
-    model_name="gpt-4o-mini",
+    model_name="gpt-4o",
     temperature=0,
     max_tokens=4096,
     seed=42
